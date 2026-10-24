@@ -2073,7 +2073,7 @@
        chat or free text between players — moves and scores only.
        While the club backend is unreachable the panels say so
        honestly ("isn't switched on yet") instead of pretending. */
-    const CLUB_API = ""; // club brain base URL — set when it goes live
+    const CLUB_API = "https://club.realskillspress.com"; // club brain base URL — set when it goes live
     let myNick = "";
 
     function clubPost(path, body){
@@ -2111,7 +2111,7 @@
       const nick = roomNick();
       if (!nick) return;
       roomMsg("Making your room…", false);
-      clubPost("/rooms", { nickname: nick })
+      clubPost("/room", { club: "ellies-game-room", player: nick })
         .then(j => {
           if (!j.code) throw new Error("no code");
           const rc = $("room-code");
@@ -2130,7 +2130,7 @@
         return;
       }
       roomMsg("Joining your friend's room…", false);
-      clubPost("/rooms/join", { nickname: nick, code: code })
+      clubPost("/room/" + code + "/join", { player: nick })
         .then(() => roomMsg("You're in the room! Your game together starts here when the club goes live.", false))
         .catch(() => roomMsg("That room couldn't be joined. Check the code — or rooms may not be switched on yet.", true));
     });
@@ -2153,10 +2153,10 @@
     }
     function loadBoard(){
       if (!CLUB_API){ boardMsg("The scoreboard isn't switched on yet — it opens when the club goes live.", true); return; }
-      fetch(CLUB_API + "/board")
+      fetch(CLUB_API + "/board?club=ellies-game-room")
         .then(r => { if (!r.ok) throw new Error("board failed"); return r.json(); })
         .then(j => {
-          const rows = j.entries || j.board || j.rows || [];
+          const rows = (j.players || []).map(p => { const g = (p.games && p.games.chess) || {}; return { nickname: p.player, level: (g.level != null ? g.level : p.grade) || 1, stars: (g.stars != null ? g.stars : p.totalStars) || 0, trophies: (p.awards || []).length }; });
           const list = $("board-list");
           list.innerHTML = "";
           if (!rows.length){
@@ -2187,10 +2187,10 @@
       if (!nickOK(nick)){ boardMsg("That nickname isn't friendly — pick a kind one!", true); return; }
       myNick = nick;
       boardMsg("Posting your score…", false);
-      clubPost("/board/join", {
-        nickname: nick,
-        level: save.level, stars: totalStars(),
-        trophies: Object.keys(save.ach).length
+      clubPost("/score", {
+        club: "ellies-game-room", player: nick, game: "chess",
+        level: save.level, xp: save.xp, stars: totalStars(),
+        awards: Object.keys(save.ach)
       })
         .then(() => { boardMsg("You're on the board, " + nick + "! Post again any time. Here's everyone:", false); loadBoard(); })
         .catch(() => boardMsg("The scoreboard isn't switched on yet — it opens when the club goes live.", true));
